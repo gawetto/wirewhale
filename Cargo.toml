@@ -1,0 +1,19 @@
+[package]
+name = "wirewhale"
+version = "0.1.0"
+edition = "2021"
+authors = ["gawetto"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tui = "0.19"
+crossterm = { version = "0.25", features = ["event-stream"]}
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7.4"
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+thiserror = "1.0.24"
+anyhow = "1.0.65"
+clap = {version="4.0.11", features=["derive"]}
