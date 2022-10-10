@@ -38,7 +38,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
-      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
