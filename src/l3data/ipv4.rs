@@ -58,8 +58,7 @@ fn read_ipv4_header<T: Read>(read: &mut T) -> Result<Ipv4Header> {
         read_u8(read)?,
         read_u8(read)?,
     );
-    let mut option = Vec::with_capacity(header_len as usize * 4 - 20);
-    option.resize(header_len as usize * 4 - 20, 0);
+    let mut option = vec![0; header_len as usize * 4 - 20];
     read_until_full(read, option.as_mut_slice())?;
     Ok(Ipv4Header {
         header_len,
@@ -81,8 +80,7 @@ fn read_ipv4_header<T: Read>(read: &mut T) -> Result<Ipv4Header> {
 pub fn read_ipv4<T: Read>(read: &mut T, len: u32, _type: u16) -> Result<Ipv4> {
     let header = read_ipv4_header(read)?;
     let payload_len = len as usize - header.header_len as usize * 4;
-    let mut payload = Vec::with_capacity(payload_len);
-    payload.resize(payload_len, 0);
+    let mut payload = vec![0; payload_len];
     read_until_full(read, payload.as_mut_slice())?;
     Ok(Ipv4 {
         _header: header,

@@ -46,11 +46,11 @@ fn get_items_bounds(
     if offset <= select && select <= (offset + max_height - 1) {
         return offset;
     }
-    return if select > max_height {
+    if select > max_height {
         select - max_height + 1
     } else {
         0
-    };
+    }
 }
 
 struct StatefulList<T> {
@@ -71,7 +71,7 @@ impl<T> StatefulList<T> {
     }
 
     fn next(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         }
         let i = match self.select {
@@ -88,7 +88,7 @@ impl<T> StatefulList<T> {
     }
 
     fn previous(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         }
         let i = match self.select {
@@ -105,7 +105,7 @@ impl<T> StatefulList<T> {
     }
 
     fn select(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         }
         match self.select {
@@ -152,9 +152,7 @@ pub async fn run_app<B: Backend>(
                             _ => {}
                         }
                     }
-                    Some(Ok(_)) => {
-                        ()
-                    }
+                    Some(Ok(_)) => {}
                     Some(Err(e)) => println!("Error: {:?}\r", e),
                     None => ()
                 }
@@ -214,12 +212,8 @@ pub fn read_pcap<T: Read>(mut read: T, tx: &UnboundedSender<Packet>) -> Result<(
     if let Err(e) = read_pcap_header(&mut read) {
         bail!("read pcap header error {}", e)
     }
-    loop {
-        if let Ok(packet) = read_packet(&mut read) {
-            tx.unbounded_send(packet)?;
-        } else {
-            break;
-        }
+    while let Ok(packet) = read_packet(&mut read) {
+        tx.unbounded_send(packet)?;
     }
     Ok(())
 }

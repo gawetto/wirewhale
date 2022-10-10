@@ -23,7 +23,7 @@ pub fn read_until_full<T: Read>(
         }
         readed += n;
     }
-    return Ok(readed);
+    Ok(readed)
 }
 
 pub fn read_u32<T: Read>(read: &mut T) -> Result<u32> {

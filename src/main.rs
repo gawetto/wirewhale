@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     let token = CancellationToken::new();
     let cloned_token = token.clone();
     tokio::spawn(async move {
-        if let Err(_) = read_pcap(stdin(), &tx) {
+        if read_pcap(stdin(), &tx).is_err() {
             token.cancel();
         }
     });

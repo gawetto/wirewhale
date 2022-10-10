@@ -72,7 +72,7 @@ fn read_packet_body<T: Read>(read: &mut T, len: u32) -> Result<PacketBody> {
         _type_len: type_len,
         _data: data,
     };
-    return Ok(ans);
+    Ok(ans)
 }
 
 fn read_packet_header<T: Read>(read: &mut T) -> Result<PacketHeader> {
