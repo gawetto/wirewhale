@@ -1,5 +1,6 @@
 # 概要
 pcapフォーマットのデータをtuiで可視化するプログラムです。パケットのキャプチャ自体はtsharkやtcpdumpを利用してください。
+[![Rust](https://github.com/gawetto/wirewhale/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/gawetto/wirewhale/actions/workflows/rust.yml)
 
 # インストール方法
 * 下記から実行したいOSのファイルをダウンロード・解凍してPATHを通してください。
