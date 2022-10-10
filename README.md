@@ -1,5 +1,6 @@
 # wirewhale
 [![ci](https://github.com/gawetto/wirewhale/actions/workflows/ci.yml/badge.svg)](https://github.com/gawetto/wirewhale/actions/workflows/ci.yml)
+
 pcapフォーマットのデータをtuiで可視化するプログラムです。パケットのキャプチャ自体はtsharkやtcpdumpを利用してください。
 
 ## インストール方法
