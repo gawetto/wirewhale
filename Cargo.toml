@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["gawetto"]
 license = "MIT"
+description = """
+wirewhale is tui viewer for pcap format data.
+"""
+repository = "https://github.com/gawetto/wirewhale"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
