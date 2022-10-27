@@ -17,7 +17,6 @@ use tui::{
 mod l3data;
 pub mod packet;
 pub mod pcap;
-mod read;
 use packet::{read_packet, Packet};
 use pcap::read_pcap_header;
 
@@ -208,10 +207,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, list: &mut StatefulList<Packet>) {
     f.render_stateful_widget(items, chunks[0], &mut state);
     f.render_widget(text, chunks[1]);
 }
-pub fn read_pcap<T: Read>(mut read: T, tx: &UnboundedSender<Packet>) -> Result<()> {
-    if let Err(e) = read_pcap_header(&mut read) {
-        bail!("read pcap header error {}", e)
-    }
+pub fn read_pcap(mut read: impl Read, tx: &UnboundedSender<Packet>) -> Result<()> {
+    read_pcap_header(&mut read)?;
     while let Ok(packet) = read_packet(&mut read) {
         tx.unbounded_send(packet)?;
     }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Parser;
 use crossterm::{
     event::EventStream,
     execute,
@@ -8,10 +9,7 @@ use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use std::io::{stdin, stdout};
 use tokio_util::sync::CancellationToken;
 use tui::{backend::CrosstermBackend, Terminal};
-
 use wirewhale::{packet::Packet, read_pcap, run_app};
-
-use clap::Parser;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

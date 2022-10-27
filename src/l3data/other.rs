@@ -1,5 +1,5 @@
-use crate::l3data::{L3data, Result};
-use crate::read::read_until_full;
+use crate::l3data::L3data;
+use anyhow::{Context, Result};
 use std::io::Read;
 
 #[derive(Debug)]
@@ -20,7 +20,8 @@ impl L3data for OtherL3data {
 
 pub fn read_otherl3data<T: Read>(read: &mut T, len: u32, _type: u16) -> Result<OtherL3data> {
     let mut payload = vec![0; len as usize];
-    read_until_full(read, payload.as_mut_slice())?;
+    read.read_exact(payload.as_mut_slice())
+        .context("read payload")?;
     Ok(OtherL3data {
         _type,
         _payload: payload,
