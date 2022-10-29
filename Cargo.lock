@@ -665,7 +665,7 @@ checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 
 [[package]]
 name = "wirewhale"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "byteorder",
