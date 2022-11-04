@@ -1,10 +1,20 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
+use async_std::io::ReadExt;
+use async_std::task::{self, JoinHandle};
+use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, EventStream, KeyCode};
-use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use crossterm::{
+    execute,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+};
 use futures_util::{FutureExt, StreamExt};
-use std::io::*;
-use tokio::select;
-use tokio_util::sync::CancellationToken;
+use std::thread::sleep;
+use std::{
+    io::*,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+use tui::backend::CrosstermBackend;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
@@ -118,46 +128,87 @@ impl<T> StatefulList<T> {
     }
 }
 
-pub async fn run_app<B: Backend>(
-    terminal: &mut Terminal<B>,
-    mut rx: UnboundedReceiver<Packet>,
-    mut event_stream: EventStream,
-    cancel_token: CancellationToken,
-) -> Result<()> {
-    let mut list = StatefulList::new();
-    loop {
-        terminal.draw(|f| ui(f, &mut list))?;
-        let event = event_stream.next().fuse();
-        let recive = rx.next().fuse();
-        select! {
-            _ = cancel_token.cancelled() => bail!("cancelled"),
-            maybe_rx = recive =>{
-                match maybe_rx {
-                    Some(x)=>{
-                        list.items.push(x);
-                    },
-                    None=>(),
-                }
-            },
-            maybe_event = event => {
-                match maybe_event {
-                    Some(Ok(Event::Key(key))) => {
-                        match key.code {
-                            KeyCode::Char('q') => return Ok(()),
-                            KeyCode::Left => {list.unselect();},
-                            KeyCode::Down => {list.next();},
-                            KeyCode::Up => {list.previous();},
-                            KeyCode::Right => {list.select();},
-                            _ => {}
-                        }
-                    }
-                    Some(Ok(_)) => {}
-                    Some(Err(e)) => println!("Error: {:?}\r", e),
-                    None => ()
-                }
-            }
-        };
+pub struct AlternateTerminal<T: Write> {
+    terminal: Terminal<CrosstermBackend<T>>,
+}
+
+impl<T: Write> AlternateTerminal<T> {
+    pub fn new(write: T) -> Result<Self> {
+        let terminal = Terminal::new(CrosstermBackend::new(write))?;
+        let mut ret = Self { terminal };
+        execute!(ret.terminal.backend_mut(), EnterAlternateScreen, Hide)?;
+        Ok(ret)
     }
+}
+
+impl<T: Write> Drop for AlternateTerminal<T> {
+    fn drop(&mut self) {
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, Show).unwrap();
+    }
+}
+
+fn run_read_packets(
+    packet_list: Arc<Mutex<StatefulList<Packet>>>,
+    mut read: impl ReadExt + Unpin + Send + 'static,
+) -> JoinHandle<()> {
+    task::spawn(async move {
+        while let Ok(packet) = read_packet(&mut read).await {
+            packet_list.lock().unwrap().items.push(packet);
+        }
+    })
+}
+
+fn run_view_tick(
+    packet_list: Arc<Mutex<StatefulList<Packet>>>,
+    write: impl Write + Send + 'static,
+    running: Arc<Mutex<bool>>,
+) -> JoinHandle<()> {
+    task::spawn_blocking(move || {
+        let mut terminal = AlternateTerminal::new(write).unwrap();
+        while *running.lock().unwrap() {
+            sleep(Duration::from_millis(1));
+            let _ = terminal
+                .terminal
+                .draw(|f| ui(f, &mut packet_list.lock().unwrap()));
+        }
+    })
+}
+
+pub async fn run_app<T: ReadExt + Unpin + Send + 'static, U: Write + Send + 'static>(
+    mut read: T,
+    write: U,
+    mut event_stream: EventStream,
+) -> Result<()> {
+    read_pcap_header(&mut read).await?;
+    let list = Arc::new(Mutex::new(StatefulList::<Packet>::new()));
+    let running = Arc::new(Mutex::new(true));
+    let read_packets_handle = run_read_packets(Arc::clone(&list), read);
+    let view_tick_handle = run_view_tick(Arc::clone(&list), write, Arc::clone(&running));
+    while let Some(Ok(event)) = event_stream.next().fuse().await {
+        if let Event::Key(key) = event {
+            let mut list = list.lock().unwrap();
+            match key.code {
+                KeyCode::Char('q') => break,
+                KeyCode::Left => {
+                    list.unselect();
+                }
+                KeyCode::Down => {
+                    list.next();
+                }
+                KeyCode::Up => {
+                    list.previous();
+                }
+                KeyCode::Right => {
+                    list.select();
+                }
+                _ => {}
+            }
+        }
+    }
+    *running.lock().unwrap() = false;
+    read_packets_handle.cancel().await;
+    view_tick_handle.await;
+    Ok(())
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, list: &mut StatefulList<Packet>) {
@@ -206,11 +257,4 @@ fn ui<B: Backend>(f: &mut Frame<B>, list: &mut StatefulList<Packet>) {
 
     f.render_stateful_widget(items, chunks[0], &mut state);
     f.render_widget(text, chunks[1]);
-}
-pub fn read_pcap(mut read: impl Read, tx: &UnboundedSender<Packet>) -> Result<()> {
-    read_pcap_header(&mut read)?;
-    while let Ok(packet) = read_packet(&mut read) {
-        tx.unbounded_send(packet)?;
-    }
-    Ok(())
 }

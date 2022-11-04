@@ -1,4 +1,3 @@
-use std::io::Read;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -22,18 +21,20 @@ pub struct PcapHeader {
     link_type: [u8; 4],
 }
 
-pub fn read_pcap_header<T: Read>(read: &mut T) -> Result<PcapHeader> {
+pub async fn read_pcap_header<T: async_std::io::ReadExt + Unpin>(
+    read: &mut T,
+) -> Result<PcapHeader> {
     let mut ans: PcapHeader = Default::default();
-    read.read_exact(&mut ans.tcpdump_magic)?;
+    read.read_exact(&mut ans.tcpdump_magic).await?;
     if !is_pcap_magic(&ans.tcpdump_magic) {
         return Err(PcapError::NotPcap);
     }
-    read.read_exact(&mut ans.major_version)?;
-    read.read_exact(&mut ans.minor_version)?;
-    read.read_exact(&mut ans.time_zone)?;
-    read.read_exact(&mut ans.sigfigs)?;
-    read.read_exact(&mut ans.scaplen)?;
-    read.read_exact(&mut ans.link_type)?;
+    read.read_exact(&mut ans.major_version).await?;
+    read.read_exact(&mut ans.minor_version).await?;
+    read.read_exact(&mut ans.time_zone).await?;
+    read.read_exact(&mut ans.sigfigs).await?;
+    read.read_exact(&mut ans.scaplen).await?;
+    read.read_exact(&mut ans.link_type).await?;
     Ok(ans)
 }
 

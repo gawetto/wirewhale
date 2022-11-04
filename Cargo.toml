@@ -19,7 +19,9 @@ tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7.4"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+futures = "0.3"
 thiserror = "1.0.24"
 anyhow = { version = "1.0.65", features = ["backtrace"] }
 clap = {version="4.0.11", features=["derive"]}
 byteorder = "1.4.3"
+async-std = {version="1.12.0", features= ["attributes","unstable"]}
