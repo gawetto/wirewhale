@@ -6,14 +6,14 @@ use byteorder::ReadBytesExt;
 use chrono::{DateTime, Local, TimeZone};
 //use std::fmt::Display;
 
-#[derive(Debug, Default,Clone,Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 struct PacketHeader {
     _timestamp: DateTime<Local>,
     _caplen: u32,
     len: u32,
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 struct Macaddr([u8; 6]);
 impl std::fmt::Debug for Macaddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -24,7 +24,7 @@ impl std::fmt::Debug for Macaddr {
         )
     }
 }
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 struct FrameHeader {
     _src: Macaddr,
     _dst: Macaddr,

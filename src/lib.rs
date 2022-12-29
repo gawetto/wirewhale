@@ -33,7 +33,6 @@ use app::InputMode;
 use packet::{read_packet, Packet};
 use pcap::read_pcap_header;
 
-
 pub struct AlternateTerminal<T: Write> {
     terminal: Terminal<CrosstermBackend<T>>,
 }
@@ -116,7 +115,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, offset: &mut usize) {
     f.render_widget(text, chunks[2]);
 }
 
-
 fn run_view_tick(
     app: Arc<Mutex<App>>,
     write: impl Write + Send + 'static,
@@ -127,7 +125,9 @@ fn run_view_tick(
         let mut offset = 0;
         while *running.lock().unwrap() {
             sleep(Duration::from_millis(100));
-            let _ = terminal.terminal.draw(|f| ui(f, &mut app.lock().unwrap(), &mut offset));
+            let _ = terminal
+                .terminal
+                .draw(|f| ui(f, &mut app.lock().unwrap(), &mut offset));
         }
     })
 }
