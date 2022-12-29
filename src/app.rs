@@ -37,14 +37,14 @@ impl App {
     }
 
     pub fn get_view_list(&self, height: u16, offset: &mut usize) -> (Vec<String>, Option<usize>) {
-        if self.list.len() == 0 {
+        if self.list.is_empty() {
             return (vec![], None);
         }
-        if self.filtered_cache[*offset].0 == None && self.filtered_cache[*offset].1 == None {
+        if self.filtered_cache[*offset].0.is_none() && self.filtered_cache[*offset].1.is_none() {
             return (vec![], None);
         }
         let mut ans = VecDeque::<String>::new();
-        if self.select == None {
+        if self.select.is_none() {
             let mut count = if self.is_filtered(self.list.len() - 1) {
                 self.list.len() - 1
             } else {
@@ -101,7 +101,7 @@ impl App {
         }
         if self.is_filtered(self.list.len() - 1) {
             for i in (0..(self.list.len() - 1)).rev() {
-                if self.filtered_cache[i].0 == None {
+                if self.filtered_cache[i].0.is_none() {
                     self.filtered_cache[i].0 = Some(self.list.len() - 1)
                 } else {
                     break;
@@ -127,20 +127,20 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if let None = self.select {
+        if self.select.is_none() {
             self.select = self.filterd_last();
         }
-        if let None = self.select {
+        if self.select.is_none() {
             return;
         }
         match self.filtered_cache[self.select.unwrap()].0 {
-            None => return,
+            None => (),
             Some(x) => self.select = Some(x),
         }
     }
 
     fn filterd_first(&self) -> Option<usize> {
-        if self.list.len() == 0 {
+        if self.list.is_empty() {
             return None;
         }
         if self.is_filtered(0) {
@@ -150,7 +150,7 @@ impl App {
     }
 
     fn filterd_last(&self) -> Option<usize> {
-        if self.list.len() == 0 {
+        if self.list.is_empty() {
             return None;
         }
         if self.is_filtered(self.list.len() - 1) {
@@ -159,14 +159,14 @@ impl App {
         self.filtered_cache[self.list.len() - 1].1
     }
     pub fn previous(&mut self) {
-        if let None = self.select {
+        if self.select.is_none() {
             self.select = self.filterd_first();
         }
-        if let None = self.select {
+        if self.select.is_none() {
             return;
         }
         match self.filtered_cache[self.select.unwrap()].1 {
-            None => return,
+            None => (),
             Some(x) => self.select = Some(x),
         }
     }
