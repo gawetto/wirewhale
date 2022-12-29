@@ -3,36 +3,37 @@ use anyhow::{Context, Result};
 use async_std::io::ReadExt;
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
+use chrono::{DateTime, Local, TimeZone};
+//use std::fmt::Display;
 
-#[derive(Debug, Default)]
-pub struct TimeStamp {
-    unix_time: u32,
-    micro_sec: u32,
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default,Clone,Copy)]
 struct PacketHeader {
-    timestanp: TimeStamp,
-    caplen: u32,
+    _timestamp: DateTime<Local>,
+    _caplen: u32,
     len: u32,
 }
 
+#[derive(Clone,Copy)]
 struct Macaddr([u8; 6]);
 impl std::fmt::Debug for Macaddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{:x}:{:x}:{:x}:{:x}:{:x}:{:x}]",
+            "[{:0>2x}:{:0>2x}:{:0>2x}:{:0>2x}:{:0>2x}:{:0>2x}]",
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
         )
     }
 }
-
-#[derive(Debug)]
-struct PacketBody {
+#[derive(Debug,Clone,Copy)]
+struct FrameHeader {
     _src: Macaddr,
     _dst: Macaddr,
     _type_len: u16,
+}
+
+#[derive(Debug)]
+struct PacketBody {
+    _header: FrameHeader,
     _data: Box<dyn L3data>,
 }
 
@@ -44,34 +45,49 @@ pub struct Packet {
 
 impl Packet {
     pub fn text(&self) -> Vec<String> {
-        let mut ans = vec![format!(
-            "{:?} => {:?} len({})",
-            self._body._src, self._body._dst, self.header.len
-        )];
+        let mut ans = vec![
+            format!("{:?}", self.header),
+            format!("{:?}", self._body._header),
+        ];
         ans.append(self._body._data.text().as_mut());
         ans
     }
     pub fn line(&self) -> String {
-        format!("len({}) {}", self.header.len, self._body._data.line())
+        format!(
+            "{}{:5} {}",
+            self.header._timestamp.format("%H:%M:%S"),
+            self.header.len,
+            self._body._data.line()
+        )
     }
 }
 
-//pub async fn read_pcap_header<T: async_std::io::ReadExt + Unpin>(
-//    read: &mut T,
-//) -> Result<PcapHeader> {
+//impl Display for Packet{
+//    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//        write!(f, "{:?}\n{}", self.header, self._body)
+//    }
+//}
+//
+//impl Display for PacketBody{
+//    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//        write!(f, "{:?} {:?} {}\n{:#?}", self._src, self._dst, self._type_len, self._data)
+//    }
+//}
 
-fn read_packet_body(buf: &[u8], len: u32) -> Result<PacketBody> {
-    let mut slice: &[u8] = buf;
+fn read_packet_body(mut bytes: std::collections::VecDeque<u8>) -> Result<PacketBody> {
     let mut src = [0u8; 6];
     let mut dst = [0u8; 6];
-    std::io::Read::read_exact(&mut slice, &mut src).context("read src")?;
-    std::io::Read::read_exact(&mut slice, &mut dst).context("read dst")?;
-    let type_len = slice.read_u16::<LittleEndian>().context("read type_len")?;
-    let data = read_l3data(&mut slice, len - 14, type_len).context("read data")?;
-    let ans = PacketBody {
+    std::io::Read::read_exact(&mut bytes, &mut src).context("read src")?;
+    std::io::Read::read_exact(&mut bytes, &mut dst).context("read dst")?;
+    let type_len = bytes.read_u16::<LittleEndian>().context("read type_len")?;
+    let header = FrameHeader {
         _src: Macaddr(src),
         _dst: Macaddr(dst),
         _type_len: type_len,
+    };
+    let data = read_l3data(bytes, type_len).context("read data")?;
+    let ans = PacketBody {
+        _header: header,
         _data: data,
     };
     Ok(ans)
@@ -79,28 +95,33 @@ fn read_packet_body(buf: &[u8], len: u32) -> Result<PacketBody> {
 
 fn read_packet_header(buf: &[u8]) -> Result<PacketHeader> {
     let mut slice: &[u8] = buf;
-    let mut ans = PacketHeader {
-        timestanp: TimeStamp {
-            unix_time: 0,
-            micro_sec: 0,
-        },
-        caplen: 0,
-        len: 0,
-    };
-    ans.timestanp.unix_time = slice.read_u32::<LittleEndian>()?;
-    ans.timestanp.micro_sec = slice.read_u32::<LittleEndian>()?;
-    ans.caplen = slice.read_u32::<LittleEndian>()?;
-    ans.len = slice.read_u32::<LittleEndian>()?;
-    Ok(ans)
+    let unix_time = slice.read_u32::<LittleEndian>()?;
+    let micro_sec = slice.read_u32::<LittleEndian>()?;
+    let _timestamp = Local
+        .timestamp_opt(unix_time as i64, micro_sec)
+        .earliest()
+        .context("time parse err")?;
+    let _caplen = slice.read_u32::<LittleEndian>()?;
+    let len = slice.read_u32::<LittleEndian>()?;
+    Ok(PacketHeader {
+        _timestamp,
+        _caplen,
+        len,
+    })
 }
 
 pub async fn read_packet(read: &mut (impl ReadExt + Unpin)) -> Result<Packet> {
-    let mut header_buf = [0u8; 16];
-    read.read_exact(&mut header_buf).await?;
-    let header = read_packet_header(&header_buf[..])?;
-    let mut body_buf = vec![0u8; header.len.try_into().unwrap()];
-    read.read_exact(&mut body_buf).await?;
-    let body = read_packet_body(&body_buf[..], header.len)?;
+    let header_buf_len = 16;
+    let mut header_buf = Vec::with_capacity(header_buf_len);
+    read.take(header_buf_len as u64)
+        .read_to_end(&mut header_buf)
+        .await?;
+    let header = read_packet_header(header_buf.as_slice())?;
+    let mut body_buf = Vec::with_capacity(header.len.try_into()?);
+    read.take(header.len.try_into()?)
+        .read_to_end(&mut body_buf)
+        .await?;
+    let body = read_packet_body(body_buf.into())?;
     Ok(Packet {
         header,
         _body: body,

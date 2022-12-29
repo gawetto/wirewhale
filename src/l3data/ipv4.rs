@@ -1,16 +1,19 @@
+use crate::l3data::ipv4data::Ipv4data;
 use crate::l3data::{L3data, Result};
 use byteorder::{NetworkEndian, ReadBytesExt};
 use std::io::Read;
 
+use super::ipv4data::read_ipv4data;
+
 #[derive(Debug)]
 pub struct Ipv4 {
     _header: Ipv4Header,
-    _payload: Vec<u8>,
+    payload: Box<dyn Ipv4data>,
 }
 
 #[derive(Debug)]
 struct Ipv4Header {
-    header_len: u8,
+    _header_len: u8,
     _service_type: u8,
     _packet_len: u16,
     _id: u16,
@@ -27,15 +30,17 @@ struct Ipv4Header {
 
 impl L3data for Ipv4 {
     fn text(&self) -> Vec<String> {
-        vec!["this is ipv4".to_string(), "yeeeeee".to_string()]
+        let mut ans = vec![format!("{:?}", self._header)];
+        ans.append(self.payload.text().as_mut());
+        ans
     }
     fn line(&self) -> String {
-        format!("ipv4 {} => {}", self._header._src, self._header._dst)
+        self.payload.line(&self._header._src, &self._header._dst)
     }
 }
 
 fn read_ipv4_header<T: Read>(read: &mut T) -> Result<Ipv4Header> {
-    let header_len = read.read_u8()? - (4 * 16) as u8;
+    let _header_len = read.read_u8()? - (4 * 16) as u8;
     let service_type = read.read_u8()?;
     let packet_len = read.read_u16::<NetworkEndian>()?;
     let id = read.read_u16::<NetworkEndian>()?;
@@ -58,10 +63,10 @@ fn read_ipv4_header<T: Read>(read: &mut T) -> Result<Ipv4Header> {
         read.read_u8()?,
         read.read_u8()?,
     );
-    let mut option = vec![0; header_len as usize * 4 - 20];
+    let mut option = vec![0; _header_len as usize * 4 - 20];
     read.read_exact(option.as_mut_slice())?;
     Ok(Ipv4Header {
-        header_len,
+        _header_len,
         _service_type: service_type,
         _packet_len: packet_len,
         _id: id,
@@ -77,13 +82,11 @@ fn read_ipv4_header<T: Read>(read: &mut T) -> Result<Ipv4Header> {
     })
 }
 
-pub fn read_ipv4<T: Read>(read: &mut T, len: u32, _type: u16) -> Result<Ipv4> {
-    let header = read_ipv4_header(read)?;
-    let payload_len = len as usize - header.header_len as usize * 4;
-    let mut payload = vec![0; payload_len];
-    read.read_exact(payload.as_mut_slice())?;
+pub fn read_ipv4(mut read: std::collections::VecDeque<u8>) -> Result<Ipv4> {
+    let header = read_ipv4_header(&mut read)?;
+    let payload = read_ipv4data(read, header._protocol)?;
     Ok(Ipv4 {
         _header: header,
-        _payload: payload,
+        payload,
     })
 }
