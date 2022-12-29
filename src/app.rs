@@ -10,6 +10,7 @@ pub struct App {
     select: Option<usize>,
     view: Option<usize>,
     input_mode: InputMode,
+    running: bool,
 }
 
 impl Default for App {
@@ -21,11 +22,18 @@ impl Default for App {
             select: None,
             view: None,
             input_mode: InputMode::List,
+            running: true,
         }
     }
 }
 
 impl App {
+    pub fn is_running(&self) -> bool {
+        self.running
+    }
+    pub fn exit(&mut self) {
+        self.running = false
+    }
     fn is_filtered(&self, i: usize) -> bool {
         self.list[i].line().contains(&self.filter)
     }
