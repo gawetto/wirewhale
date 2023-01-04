@@ -18,6 +18,7 @@ use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
 pub mod app;
+pub mod filtable;
 mod input_action;
 mod l3data;
 pub mod packet;
@@ -80,10 +81,6 @@ pub async fn run_app<T: ReadExt + Unpin + Send + 'static, U: Write + Send + 'sta
 ) -> Result<()> {
     read_pcap_header(&mut read).await?;
     let app = Arc::new(Mutex::new(App::default()));
-    app.lock().unwrap().add_filter_char(b't');
-    app.lock().unwrap().add_filter_char(b'y');
-    app.lock().unwrap().add_filter_char(b'p');
-    app.lock().unwrap().add_filter_char(b'e');
     let read_packets_handle = run_read_packets(Arc::clone(&app), read);
     let view_tick_handle = run_view_tick(Arc::clone(&app), write);
     while let Some(Ok(event)) = event_stream.next().fuse().await {
@@ -94,6 +91,7 @@ pub async fn run_app<T: ReadExt + Unpin + Send + 'static, U: Write + Send + 'sta
             continue;
         };
         input_action::allmode_input(&mut app, key.code);
+        eprintln!("{}", app);
         match app.get_input_mode() {
             InputMode::List => input_action::listmode_input(&mut app, key.code),
             InputMode::View => input_action::viewmode_input(&mut app, key.code),

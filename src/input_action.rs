@@ -12,7 +12,6 @@ pub fn allmode_input(app: &mut App, keycode: KeyCode) {
 pub fn viewmode_input(_app: &mut App, _keycode: KeyCode) {}
 pub fn listmode_input(app: &mut App, keycode: KeyCode) {
     match keycode {
-        KeyCode::Char('q') => (),
         KeyCode::Left => {
             app.unselect();
         }
@@ -28,4 +27,18 @@ pub fn listmode_input(app: &mut App, keycode: KeyCode) {
         _ => {}
     }
 }
-pub fn filtermode_input(_app: &mut App, _keycode: KeyCode) {}
+pub fn filtermode_input(app: &mut App, keycode: KeyCode) {
+    if let KeyCode::Backspace = keycode {
+        app.delete_filter_char();
+        return;
+    }
+    let key_char = if let KeyCode::Char(x) = keycode {
+        x
+    } else {
+        return;
+    };
+    if !key_char.is_ascii() {
+        return;
+    }
+    app.add_filter_str(&key_char.to_string());
+}

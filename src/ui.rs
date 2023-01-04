@@ -55,7 +55,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, offset: &mut usize) {
         .split(f.size());
     let view = app.get_view_text();
     let text = Paragraph::new(Text::raw(view));
-    let filter = Paragraph::new(Text::raw("filter:".to_string()));
+    let filter = Paragraph::new(Text::raw("filter:".to_string() + &app.get_filter()));
     f.render_widget(filter, chunks[0]);
     list_ui(f, app, chunks[1], offset);
     f.render_widget(text, chunks[2]);

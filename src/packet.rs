@@ -5,6 +5,7 @@ use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use chrono::{DateTime, Local, TimeZone};
 //use std::fmt::Display;
+use crate::filtable::Filtable;
 
 #[derive(Debug, Default, Clone, Copy)]
 struct PacketHeader {
@@ -59,6 +60,12 @@ impl Packet {
             self.header.len,
             self._body._data.line()
         )
+    }
+}
+
+impl Filtable for Packet{
+    fn is_match(&self, s: &str) -> bool {
+        self.line().contains(s)
     }
 }
 

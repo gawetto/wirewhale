@@ -1,24 +1,31 @@
 use std::collections::VecDeque;
 
 use crate::Packet;
+use crate::filtable::FiltableList;
 
 #[derive(Debug)]
 pub struct App {
-    filter: String,
-    list: Vec<Packet>,
-    filtered_cache: Vec<(Option<usize>, Option<usize>)>,
+    list: FiltableList<Packet>,
     select: Option<usize>,
     view: Option<usize>,
     input_mode: InputMode,
     running: bool,
 }
 
+impl std::fmt::Display for App {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "filter:{}, select:{:?}, view:{:?}, input_mode:{:?}, running:{}",
+            self.get_filter(), self.select, self.view, self.input_mode, self.running
+        )
+    }
+}
+
 impl Default for App {
     fn default() -> Self {
         Self {
-            filter: "".to_string(),
-            list: vec![],
-            filtered_cache: vec![],
+            list: FiltableList::<Packet>::new(),
             select: None,
             view: None,
             input_mode: InputMode::List,
@@ -34,33 +41,40 @@ impl App {
     pub fn exit(&mut self) {
         self.running = false
     }
-    fn is_filtered(&self, i: usize) -> bool {
-        self.list[i].line().contains(&self.filter)
-    }
     pub fn get_view_text(&self) -> String {
         match self.view {
-            Some(x) => self.list[x].text().join("\n"),
+            Some(x) => self.list.get_item(x).text().join("\n"),
             None => "".to_string(),
         }
     }
+    pub fn get_filter(&self) -> String {
+        self.list.get_filter()
+    }
 
     pub fn get_view_list(&self, height: u16, offset: &mut usize) -> (Vec<String>, Option<usize>) {
-        if self.list.is_empty() {
+        let (items, select) = self.get_view_list_index(height, offset);
+        let ans = items.iter().map(|x| self.list.get_item(*x).line()).collect();
+        (ans, select)
+    }
+
+    pub fn add_filter_str(&mut self, st: &str) {
+        self.list.add_filter_str(st);
+    }
+
+    pub fn delete_filter_char(&mut self) {
+        self.list.delete_filter_char();
+    }
+
+    fn get_view_list_index(&self, height: u16, offset: &mut usize) -> (Vec<usize>, Option<usize>) {
+        if self.list.is_filterd_empty() {
             return (vec![], None);
         }
-        if self.filtered_cache[*offset].0.is_none() && self.filtered_cache[*offset].1.is_none() {
-            return (vec![], None);
-        }
-        let mut ans = VecDeque::<String>::new();
+        let mut ans = VecDeque::<usize>::new();
         if self.select.is_none() {
-            let mut count = if self.is_filtered(self.list.len() - 1) {
-                self.list.len() - 1
-            } else {
-                self.filtered_cache[self.list.len() - 1].1.unwrap()
-            };
+            let mut count = self.list.filterd_last().unwrap();
             while height as usize > ans.len() {
-                ans.push_back(self.list[count].line());
-                if let Some(x) = self.filtered_cache[count].1 {
+                ans.push_front(count);
+                if let Some(x) = self.list.previous(count) {
                     count = x;
                 } else {
                     break;
@@ -69,114 +83,57 @@ impl App {
             return (Vec::from(ans), None);
         }
         *offset = std::cmp::min(*offset, self.select.unwrap_or(*offset));
-        if !self.is_filtered(*offset) {
-            *offset = match self.filtered_cache[*offset].0 {
+        if !self.list.is_match(*offset) {
+            *offset = match self.list.next(*offset) {
                 Some(x) => x,
-                None => self.filtered_cache[*offset].1.unwrap(),
+                None => self.list.previous(*offset).unwrap(),
             }
         }
-        let mut select = None;
         let mut count = *offset;
-        while height as usize > ans.len() || count <= self.select.unwrap_or(0) {
-            if self.select == Some(count) {
-                select = Some(ans.len());
-            }
-            if ans.len() == height as usize {
-                *offset = self.filtered_cache[*offset].0.unwrap();
+        loop{
+            if ans.len() >= height as usize {
+                if count > self.select.unwrap_or(0){
+                    break
+                }
                 ans.pop_front();
             }
-            ans.push_back(self.list[count].line());
-            count = if let Some(x) = self.filtered_cache[count].0 {
-                x
-            } else {
-                break;
-            };
+            ans.push_back(count);
+            count = if let Some(x) = self.list.next(count){x}else{break}
         }
+        while ans.len() > height as usize{
+            ans.pop_front();
+        }
+        *offset = ans[0];
+        let select = if let Some(x) = self.select{
+            ans.iter().position(|&i|i==x)
+        }else{
+            None
+        };
         (Vec::from(ans), select)
     }
 
     pub fn add_packet(&mut self, p: Packet) {
         self.list.push(p);
-        if self.list.len() == 1 {
-            self.filtered_cache.push((None, None));
-            return;
-        }
-        if self.is_filtered(self.list.len() - 2) {
-            self.filtered_cache.push((None, Some(self.list.len() - 2)))
-        } else {
-            self.filtered_cache
-                .push((None, self.filtered_cache[self.list.len() - 2].1))
-        }
-        if self.is_filtered(self.list.len() - 1) {
-            for i in (0..(self.list.len() - 1)).rev() {
-                if self.filtered_cache[i].0.is_none() {
-                    self.filtered_cache[i].0 = Some(self.list.len() - 1)
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    fn update_filter(&mut self) {
-        let mut last_true = None;
-        for i in 0..self.list.len() {
-            self.filtered_cache[i].0 = last_true;
-            if self.is_filtered(i) {
-                last_true = Some(i);
-            }
-        }
-        last_true = None;
-        for i in (0..self.list.len()).rev() {
-            self.filtered_cache[i].1 = last_true;
-            if self.is_filtered(i) {
-                last_true = Some(i);
-            }
-        }
     }
 
     pub fn next(&mut self) {
         if self.select.is_none() {
-            self.select = self.filterd_last();
-        }
-        if self.select.is_none() {
+            self.select = self.list.filterd_last();
             return;
         }
-        match self.filtered_cache[self.select.unwrap()].0 {
-            None => (),
-            Some(x) => self.select = Some(x),
-        }
+        if let Some(x) = self.list.next(self.select.unwrap()){
+         self.select=   Some(x)
+        };
     }
 
-    fn filterd_first(&self) -> Option<usize> {
-        if self.list.is_empty() {
-            return None;
-        }
-        if self.is_filtered(0) {
-            return Some(0);
-        }
-        self.filtered_cache[0].0
-    }
-
-    fn filterd_last(&self) -> Option<usize> {
-        if self.list.is_empty() {
-            return None;
-        }
-        if self.is_filtered(self.list.len() - 1) {
-            return Some(self.list.len() - 1);
-        }
-        self.filtered_cache[self.list.len() - 1].1
-    }
     pub fn previous(&mut self) {
         if self.select.is_none() {
-            self.select = self.filterd_first();
-        }
-        if self.select.is_none() {
+            self.select = self.list.filterd_first();
             return;
         }
-        match self.filtered_cache[self.select.unwrap()].1 {
-            None => (),
-            Some(x) => self.select = Some(x),
-        }
+        if let Some(x) = self.list.previous(self.select.unwrap()){
+         self.select=   Some(x)
+        };
     }
 
     pub fn to_view(&mut self) {
@@ -186,17 +143,7 @@ impl App {
     pub fn unselect(&mut self) {
         self.select = None;
     }
-    pub fn add_filter_char(&mut self, ascii: u8) {
-        if let Some(x) = char::from_u32(ascii as u32) {
-            self.filter.push(x);
-            self.update_filter();
-        }
-    }
 
-    pub fn delete_filter_char(&mut self) {
-        self.filter.pop();
-        self.update_filter();
-    }
     pub fn next_forcus(&mut self) {
         self.input_mode.next()
     }
@@ -229,9 +176,6 @@ mod tests {
     #[test]
     fn it_works() {
         let mut app = App::default();
-        app.add_filter_char(b'U');
-        app.add_filter_char(b'D');
-        app.add_filter_char(b'P');
 
         let tcp_packet = [
             0x61u8, 0x6u8, 0xadu8, 0x63u8, 0x85u8, 0x5cu8, 0x2u8, 0x00u8, 0xa4u8, 0x00u8, 0x00u8,
@@ -267,8 +211,8 @@ mod tests {
         ];
 
         async_std::task::block_on(async {
-            for i in 0..5 {
-                let mut packet_read = if i == 2 {
+            for i in 0..20 {
+                let mut packet_read = if i % 2 == 0 {
                     &tcp_packet[..]
                 } else {
                     &udp_packet[..]
@@ -279,6 +223,27 @@ mod tests {
                 }
             }
         });
-        println!("{:?}", app)
+        let mut offset = 0;
+        let height = 5;
+        let (view_list, _) = app.get_view_list(height, &mut offset);
+        assert_eq!(view_list.len(),height as usize);
+        app.list.add_filter_str("UDP");
+        let (view_list, _) = app.get_view_list(height, &mut offset);
+        assert_eq!(view_list.len(),height as usize);
+        app.next();
+        let (_, select) = app.get_view_list(height, &mut offset);
+        assert_eq!(select, Some(4));
+        app.previous();
+        let (_, select) = app.get_view_list(height, &mut offset);
+        assert_eq!(select, Some(3));
+        app.previous();
+        app.previous();
+        app.previous();
+        app.previous();
+        let (_view_list, select) = app.get_view_list(height, &mut offset);
+        assert_eq!(select, Some(0));
+        app.next();
+        let (_view_list, select) = app.get_view_list(height, &mut offset);
+        assert_eq!(select, Some(1));
     }
 }
