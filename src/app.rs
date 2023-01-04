@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::Packet;
 use crate::filtable::FiltableList;
+use crate::Packet;
 
 #[derive(Debug)]
 pub struct App {
@@ -17,7 +17,11 @@ impl std::fmt::Display for App {
         write!(
             f,
             "filter:{}, select:{:?}, view:{:?}, input_mode:{:?}, running:{}",
-            self.get_filter(), self.select, self.view, self.input_mode, self.running
+            self.get_filter(),
+            self.select,
+            self.view,
+            self.input_mode,
+            self.running
         )
     }
 }
@@ -53,7 +57,10 @@ impl App {
 
     pub fn get_view_list(&self, height: u16, offset: &mut usize) -> (Vec<String>, Option<usize>) {
         let (items, select) = self.get_view_list_index(height, offset);
-        let ans = items.iter().map(|x| self.list.get_item(*x).line()).collect();
+        let ans = items
+            .iter()
+            .map(|x| self.list.get_item(*x).line())
+            .collect();
         (ans, select)
     }
 
@@ -90,23 +97,27 @@ impl App {
             }
         }
         let mut count = *offset;
-        loop{
+        loop {
             if ans.len() >= height as usize {
-                if count > self.select.unwrap_or(0){
-                    break
+                if count > self.select.unwrap_or(0) {
+                    break;
                 }
                 ans.pop_front();
             }
             ans.push_back(count);
-            count = if let Some(x) = self.list.next(count){x}else{break}
+            count = if let Some(x) = self.list.next(count) {
+                x
+            } else {
+                break;
+            }
         }
-        while ans.len() > height as usize{
+        while ans.len() > height as usize {
             ans.pop_front();
         }
         *offset = ans[0];
-        let select = if let Some(x) = self.select{
-            ans.iter().position(|&i|i==x)
-        }else{
+        let select = if let Some(x) = self.select {
+            ans.iter().position(|&i| i == x)
+        } else {
             None
         };
         (Vec::from(ans), select)
@@ -121,8 +132,8 @@ impl App {
             self.select = self.list.filterd_last();
             return;
         }
-        if let Some(x) = self.list.next(self.select.unwrap()){
-         self.select=   Some(x)
+        if let Some(x) = self.list.next(self.select.unwrap()) {
+            self.select = Some(x)
         };
     }
 
@@ -131,8 +142,8 @@ impl App {
             self.select = self.list.filterd_first();
             return;
         }
-        if let Some(x) = self.list.previous(self.select.unwrap()){
-         self.select=   Some(x)
+        if let Some(x) = self.list.previous(self.select.unwrap()) {
+            self.select = Some(x)
         };
     }
 
@@ -226,10 +237,10 @@ mod tests {
         let mut offset = 0;
         let height = 5;
         let (view_list, _) = app.get_view_list(height, &mut offset);
-        assert_eq!(view_list.len(),height as usize);
+        assert_eq!(view_list.len(), height as usize);
         app.list.add_filter_str("UDP");
         let (view_list, _) = app.get_view_list(height, &mut offset);
-        assert_eq!(view_list.len(),height as usize);
+        assert_eq!(view_list.len(), height as usize);
         app.next();
         let (_, select) = app.get_view_list(height, &mut offset);
         assert_eq!(select, Some(4));

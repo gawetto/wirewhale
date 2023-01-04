@@ -63,7 +63,7 @@ impl Packet {
     }
 }
 
-impl Filtable for Packet{
+impl Filtable for Packet {
     fn is_match(&self, s: &str) -> bool {
         self.line().contains(s)
     }

@@ -22,28 +22,28 @@ impl<T: Filtable> FiltableList<T> {
             filter: "".to_string(),
         }
     }
-    pub fn is_empty(&self) -> bool{
+    pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
-    pub fn is_filterd_empty(&self) -> bool{
-        if self.list.is_empty() == true{
-            return true
+    pub fn is_filterd_empty(&self) -> bool {
+        if self.list.is_empty() {
+            return true;
         }
-        if self.next(0) == None{
-            return true
+        if self.next(0).is_none() {
+            return true;
         }
-        return false
+        false
     }
-    pub fn get_filter(&self) -> String{
+    pub fn get_filter(&self) -> String {
         self.filter.clone()
     }
-    pub fn get_item(&self, i: usize) -> &T{
+    pub fn get_item(&self, i: usize) -> &T {
         &self.list[i].item
     }
-    pub fn is_match(&self, i:usize) -> bool{
+    pub fn is_match(&self, i: usize) -> bool {
         self.list[i].item.is_match(&self.filter)
     }
-    pub fn len(&self) -> usize{
+    pub fn len(&self) -> usize {
         self.list.len()
     }
     pub fn push(&mut self, item: T) {
@@ -77,12 +77,12 @@ impl<T: Filtable> FiltableList<T> {
             return;
         }
         let mut count = self.list.len() - 2;
-        while self.list[count].next == None {
+        while self.list[count].next.is_none() {
             self.list[count].next = Some(self.list.len() - 1);
-            if count > 0{
-                count -=1
-            }else{
-                break
+            if count > 0 {
+                count -= 1
+            } else {
+                break;
             }
         }
     }
