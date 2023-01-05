@@ -25,4 +25,4 @@ anyhow = { version = "1.0.65", features = ["backtrace"] }
 clap = {version="4.0.11", features=["derive"]}
 byteorder = "1.4.3"
 async-std = {version="1.12.0", features= ["attributes","unstable"]}
-chrono = "0.4.23"
+chrono = { version = "0.4.23", default-features = false, features = ["clock"] }
