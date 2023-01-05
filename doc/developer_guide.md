@@ -1,7 +1,7 @@
 # release
 ```
 cargo install cargo-release
-cargo release --patch
+cargo release patch
 cargo login
-cargo release --patch --execute
+cargo release patch --execute
 ```
