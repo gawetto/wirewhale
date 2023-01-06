@@ -91,7 +91,6 @@ pub async fn run_app<T: ReadExt + Unpin + Send + 'static, U: Write + Send + 'sta
             continue;
         };
         input_action::allmode_input(&mut app, key.code);
-        eprintln!("{}", app);
         match app.get_input_mode() {
             InputMode::List => input_action::listmode_input(&mut app, key.code),
             InputMode::View => input_action::viewmode_input(&mut app, key.code),
