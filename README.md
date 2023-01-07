@@ -15,7 +15,7 @@ cat pcap.pcap|wirewhale
 #### リアルタイムでキャプチャしたデータを可視化する場合
 * tcpdumpをインストールしてください
 ```
-tcpdump -U -w - 2>/dev/null|wirewhale
+sudo tcpdump -i eth0 -U -w - 2>/dev/null|wirewhale
 ```
 
 ### Windows
@@ -28,7 +28,7 @@ cmd /c "type pcap.pcap|wirewhale.exe"
 #### リアルタイムでキャプチャしたデータを可視化する場合
 * wiresharkをインストールしてください
 ```
-cmd /c '"C:\Program Files\Wireshark\tshark.exe" -F pcap -w - 2>nul|wirewhale.exe'
+cmd /c '"C:\Program Files\Wireshark\tshark.exe" -F pcap -i 8 -w - 2>nul|wirewhale.exe'
 ```
 ※powershellではパイプでバイナリデータを渡せないのでcmdを使う必要があります
 
