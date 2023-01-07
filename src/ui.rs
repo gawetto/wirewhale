@@ -7,9 +7,15 @@ use tui::{
     Frame,
 };
 
-use crate::App;
+use crate::{app::InputMode, App};
 
-fn list_ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: Rect, offset: &mut usize) {
+fn list_ui<B: Backend>(
+    f: &mut Frame<B>,
+    app: &mut App,
+    chunk: Rect,
+    offset: &mut usize,
+    style: Style,
+) {
     let (items, select) = app.get_view_list(chunk.height - 2, offset);
     let items: Vec<ListItem> = items
         .iter()
@@ -20,9 +26,6 @@ fn list_ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: Rect, offset: &mu
         })
         .collect();
 
-    let brdr_style = Style::default()
-        .bg(Color::Rgb(50, 50, 50))
-        .fg(Color::Rgb(150, 150, 150));
     let items = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("Packets"))
         .highlight_style(
@@ -30,7 +33,7 @@ fn list_ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: Rect, offset: &mu
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
         )
-        .style(brdr_style)
+        .style(style)
         .highlight_symbol("");
 
     let mut state = ListState::default();
@@ -39,8 +42,23 @@ fn list_ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: Rect, offset: &mu
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, offset: &mut usize) {
-    let _active_bg = Color::Rgb(50, 50, 50);
-    let _deactive_bg = Color::Rgb(0, 0, 0);
+    let _active_style = Style::default().bg(Color::Rgb(50, 50, 50));
+    let _deactive_style = Style::default().bg(Color::Rgb(0, 0, 0));
+    let filter_style = if let InputMode::Filter = app.get_input_mode() {
+        _active_style
+    } else {
+        _deactive_style
+    };
+    let list_style = if let InputMode::List = app.get_input_mode() {
+        _active_style
+    } else {
+        _deactive_style
+    };
+    let text_style = if let InputMode::View = app.get_input_mode() {
+        _active_style
+    } else {
+        _deactive_style
+    };
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -54,9 +72,10 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, offset: &mut usize) {
         )
         .split(f.size());
     let view = app.get_view_text();
-    let text = Paragraph::new(Text::raw(view));
-    let filter = Paragraph::new(Text::raw("filter:".to_string() + &app.get_filter()));
+    let text = Paragraph::new(Text::raw(view)).style(text_style);
+    let filter =
+        Paragraph::new(Text::raw("filter:".to_string() + &app.get_filter())).style(filter_style);
     f.render_widget(filter, chunks[0]);
-    list_ui(f, app, chunks[1], offset);
+    list_ui(f, app, chunks[1], offset, list_style);
     f.render_widget(text, chunks[2]);
 }
