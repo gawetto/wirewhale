@@ -15,7 +15,7 @@ cat pcap.pcap|wirewhale
 #### リアルタイムでキャプチャしたデータを可視化する場合
 * tcpdumpをインストールしてください
 ```
-tcpdump -l -w - 2>/dev/null|wirewhale
+tcpdump -U -w - 2>/dev/null|wirewhale
 ```
 
 ### Windows
